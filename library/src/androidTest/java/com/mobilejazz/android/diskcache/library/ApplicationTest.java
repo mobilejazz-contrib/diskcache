@@ -1,4 +1,4 @@
-package com.mobilejazz.android.diskcache.library;
+package com.mobilejazz.android.diskcache.library.test;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

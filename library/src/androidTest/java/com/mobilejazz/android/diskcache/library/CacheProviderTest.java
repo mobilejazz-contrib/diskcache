@@ -1,4 +1,4 @@
-package com.mobilejazz.android.diskcache.library;
+package com.mobilejazz.android.diskcache.library.test;
 
 import java.io.File;
 
@@ -12,7 +12,9 @@ import android.test.RenamingDelegatingContext;
 import android.test.mock.MockContentResolver;
 import android.test.mock.MockContext;
 
-public abstract class CacheProviderTestCase extends AndroidTestCase {
+import com.mobilejazz.android.diskcache.library.CacheProvider;
+
+public class CacheProviderTest extends AndroidTestCase {
 
     String mProviderAuthority;
 
@@ -39,7 +41,7 @@ public abstract class CacheProviderTestCase extends AndroidTestCase {
         }
     }
 
-    public CacheProviderTestCase() {
+    public CacheProviderTest() {
         mProviderAuthority = "com.mobilejazz.android.diskcache.library.CACHE_PROVIDER";
     }
 
@@ -55,15 +57,7 @@ public abstract class CacheProviderTestCase extends AndroidTestCase {
 
         mResolver = new MockContentResolver();
         final String filenamePrefix = "test.";
-        RenamingDelegatingContext targetContextWrapper = new RenamingDelegatingContext(new MockContext2(), // The
-                                                                                                           // context
-                                                                                                           // that
-                                                                                                           // most
-                                                                                                           // methods
-                                                                                                           // are
-                // delegated to
-                getContext(), // The context that file methods are delegated to
-                filenamePrefix);
+        RenamingDelegatingContext targetContextWrapper = new RenamingDelegatingContext(new MockContext2(), getContext(), filenamePrefix);
         mProviderContext = new IsolatedContext(mResolver, targetContextWrapper);
         mProvider = createProviderForTest(mProviderContext, mProviderAuthority);
         mResolver.addProvider(mProviderAuthority, getProvider());
