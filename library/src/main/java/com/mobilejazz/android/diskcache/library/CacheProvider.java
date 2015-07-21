@@ -7,9 +7,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -36,6 +38,7 @@ public class CacheProvider extends FileProvider {
     public static final String EXTRA_AUTHORITY = "com.mobilejazz.android.diskcache.library.EXTRA_AUTHORITY";
 
     public static final int MAX_AGE = 24 * 3600; // one day
+    public static final int MAX_SIZE = 100 * 1024 * 1024; // 100 MB
 
     @Override
     public void attachInfo(Context context, ProviderInfo info) {
@@ -60,15 +63,9 @@ public class CacheProvider extends FileProvider {
 
     public static void clear(Context context, String authority) throws IOException, XmlPullParserException {
         // delete all files that are older than the maximum allowed age:
-        visitFiles(context, authority, new Visitor<File>() {
-            @Override
-            public void visit(File f) {
-                if (System.currentTimeMillis() - f.lastModified() > MAX_AGE) {
-                    boolean res = f.delete();
-                    Log.i(TAG, String.format("Removing file %s - %s", f.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
-                }
-            }
-        });
+        FileCleaner cleaner = new FileCleaner();
+        visitFiles(context, authority, cleaner);
+        cleaner.purge();
     }
 
     private static final String META_DATA_FILE_PROVIDER_PATHS = "android.support.FILE_PROVIDER_PATHS";
@@ -182,6 +179,61 @@ public class CacheProvider extends FileProvider {
             throw new IllegalStateException("This cache provider has no directory defined.");
         }
         return ds.get(0);
+    }
+
+    private static class FileCleaner implements Visitor<File> {
+
+        private int size;
+        private PriorityQueue<File> purgeCandidates;
+
+        public FileCleaner() {
+            size = 0;
+            purgeCandidates = new PriorityQueue<>(32, new Comparator<File>() {
+                @Override
+                public int compare(File lhs, File rhs) {
+                    double sa = score(lhs);
+                    double sb = score(rhs);
+                    if (sa > sb) {
+                        return 1;
+                    } else if (sa < sb) {
+                        return -1;
+                    } else {
+                        return 0;
+                    }
+                }
+            });
+        }
+
+        private static double score(File f) {
+            return ((double)(f.length()) / (double)MAX_SIZE)*5.0 + ((double)(System.currentTimeMillis() - f.lastModified()) / (double)MAX_AGE);
+        }
+
+        @Override
+        public void visit(File f) {
+            if (System.currentTimeMillis() - f.lastModified() > MAX_AGE) {
+                boolean res = f.delete();
+                if (!res) {
+                    size += f.length();
+                }
+                Log.i(TAG, String.format("[AGE] Removing file %s - %s", f.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
+            } else {
+                size += f.length();
+                purgeCandidates.add(f);
+            }
+        }
+
+        public void purge() {
+            // remove files until the size of the cache is lower than MAX_SIZE:
+            while (size > MAX_SIZE) {
+                File next = purgeCandidates.poll();
+                boolean res = next.delete();
+                if (res) {
+                    size -= next.length();
+                }
+                Log.i(TAG, String.format("[SIZE] Removing file %s - %s", next.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
+            }
+        }
+
     }
 
 }
