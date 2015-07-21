@@ -29,28 +29,51 @@ import android.os.ParcelFileDescriptor;
 import android.support.v4.content.FileProvider;
 import android.util.Log;
 
+/**
+ * A {@link FileProvider} implementation that additionally clears files that
+ * exceed a certain age and ensures that the cache size does not exceed a
+ * certain value. Both maximum age and size can be defined by metadata
+ * properties ({@code com.mobilejazz.android.diskcache.META_MAX_AGE} and
+ * {@code com.mobilejazz.android.diskcache.META_MAX_SIZE}).
+ *
+ * An alarm is used to schedule a clearing of the cache once a day.
+ *
+ * @see AlarmManager
+ */
 public class CacheProvider extends FileProvider {
 
+    /**
+     * Meta-data defining the maximum age of a file in days. When a file exceeds
+     * that age, it will be removed. Note that it will not be removed
+     * immediately, but within the next day. If a file is modified it will reset
+     * it's age (see {@link File#lastModified()}.
+     */
     public static final String META_DATA_MAX_AGE = "com.mobilejazz.android.diskcache.META_MAX_AGE";
+
+    /**
+     * Meta-data defining the maximum size of the cache in kilobytes. When all
+     * files collectively exceed the maximum cache size, files are deleted until
+     * the cache size is smaller than the maximum cache sizes. The order in
+     * which files are deleted is a combination of size and age.
+     */
     public static final String META_DATA_MAX_SIZE = "com.mobilejazz.android.diskcache.META_MAX_SIZE";
 
-    public static final String TAG = "diskcache";
+    static final String TAG = "diskcache";
 
-    public static final int REQUEST_CLEAR_CACHE = 44477905;
-    public static final String ACTION_CLEAR_CACHE = "com.mobilejazz.android.diskcache.ACTION_CLEAR_CACHE";
-    public static final String EXTRA_AUTHORITY = "com.mobilejazz.android.diskcache.EXTRA_AUTHORITY";
+    static final int REQUEST_CLEAR_CACHE = 44477905;
+    static final String EXTRA_AUTHORITY = "com.mobilejazz.android.diskcache.EXTRA_AUTHORITY";
 
     @Override
     public void attachInfo(Context context, ProviderInfo info) {
         super.attachInfo(context, info);
-        Intent clearCacheIntent = new Intent(ACTION_CLEAR_CACHE).setClass(getContext(), CacheBroadcastReceiver.class).putExtra(EXTRA_AUTHORITY, info.authority);
+        Intent clearCacheIntent = new Intent(getContext(), CacheBroadcastReceiver.class).putExtra(EXTRA_AUTHORITY, info.authority);
         PendingIntent clearCache = PendingIntent.getBroadcast(getContext(), REQUEST_CLEAR_CACHE, clearCacheIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         AlarmManager am = (AlarmManager) (getContext().getSystemService(Context.ALARM_SERVICE));
         am.cancel(clearCache);
         am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, AlarmManager.INTERVAL_FIFTEEN_MINUTES, AlarmManager.INTERVAL_FIFTEEN_MINUTES, clearCache);
 
         try {
-            getContext().registerReceiver(new CacheBroadcastReceiver(), IntentFilter.create(ACTION_CLEAR_CACHE, "*/*"));
+            getContext().registerReceiver(new CacheBroadcastReceiver(), IntentFilter.create("", "*/*"));
         } catch (IllegalArgumentException e) {
             // already registered
         }
@@ -61,7 +84,23 @@ public class CacheProvider extends FileProvider {
         return super.openFile(uri, mode);
     }
 
-    public static void clear(Context context, String authority) throws IOException, XmlPullParserException {
+    /**
+     * Manually clear the cache. Clearing the cache will remove all files that
+     * are older than the maximum age (see {@link #META_DATA_MAX_AGE} and it
+     * will remove selected files until the sum of all file sizes is smaller
+     * than the maximum size (see {@link #META_DATA_MAX_SIZE}). Files will be
+     * selected based on their age and their sizes.
+     * 
+     * @param context
+     *            The current {@link Context}.
+     * @param authority
+     *            The authority of the cache provider for which to clear the
+     *            files.
+     * @throws IOException
+     *             If there is an error while reading the meta file that defines
+     *             the directories.
+     */
+    public static void clear(Context context, String authority) throws IOException {
         final ProviderInfo info = context.getPackageManager().resolveContentProvider(authority, PackageManager.GET_META_DATA);
         // delete all files that are older than the maximum allowed age:
         FileCleaner cleaner = new FileCleaner(info.metaData.getInt(META_DATA_MAX_AGE, 0), info.metaData.getInt(META_DATA_MAX_SIZE, 0));
@@ -191,8 +230,8 @@ public class CacheProvider extends FileProvider {
         private int maxSize;
 
         public FileCleaner(int maxAge, int maxSize) {
-            this.maxAge = maxAge;
-            this.maxSize = maxSize;
+            this.maxAge = maxAge * 86400;
+            this.maxSize = maxSize * 1024;
             size = 0;
             purgeCandidates = new PriorityQueue<>(32, new Comparator<File>() {
                 @Override
@@ -211,7 +250,7 @@ public class CacheProvider extends FileProvider {
         }
 
         private double score(File f) {
-            return ((double)(f.length()) / (double)maxSize)*5.0 + ((double)(System.currentTimeMillis() - f.lastModified()) / (double)maxAge);
+            return ((double) (f.length()) / (double) maxSize) * 5.0 + ((double) (System.currentTimeMillis() - f.lastModified()) / (double) maxAge);
         }
 
         @Override
@@ -230,7 +269,8 @@ public class CacheProvider extends FileProvider {
 
         public void purge() {
             if (maxSize > 0) {
-                // remove files until the size of the cache is lower than MAX_SIZE:
+                // remove files until the size of the cache is lower than
+                // MAX_SIZE:
                 while (size > maxSize) {
                     File next = purgeCandidates.poll();
                     boolean res = next.delete();
