@@ -11,6 +11,22 @@
             android:name=".MainActivity"
             android:label="@string/title_activity_main" >
         </activity>
+
+        <provider
+            android:name="com.mobilejazz.android.diskcache.library.CacheProvider"
+            android:authorities="@string/authority.cache"
+            android:grantUriPermissions="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/cache_filepath_single" />
+            <meta-data
+                android:name="com.mobilejazz.android.diskcache.META_MAX_AGE"
+                android:value="1" />
+            <meta-data
+                android:name="com.mobilejazz.android.diskcache.META_MAX_SIZE"
+                android:value="1" />
+        </provider>
     </application>
 
 </manifest>
