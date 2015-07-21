@@ -31,14 +31,14 @@ import android.util.Log;
 
 public class CacheProvider extends FileProvider {
 
+    public static final String META_DATA_MAX_AGE = "com.mobilejazz.android.diskcache.META_MAX_AGE";
+    public static final String META_DATA_MAX_SIZE = "com.mobilejazz.android.diskcache.META_MAX_SIZE";
+
     public static final String TAG = "diskcache";
 
     public static final int REQUEST_CLEAR_CACHE = 44477905;
-    public static final String ACTION_CLEAR_CACHE = "com.mobilejazz.android.diskcache.library.ACTION_CLEAR_CACHE";
-    public static final String EXTRA_AUTHORITY = "com.mobilejazz.android.diskcache.library.EXTRA_AUTHORITY";
-
-    public static final int MAX_AGE = 24 * 3600; // one day
-    public static final int MAX_SIZE = 100 * 1024 * 1024; // 100 MB
+    public static final String ACTION_CLEAR_CACHE = "com.mobilejazz.android.diskcache.ACTION_CLEAR_CACHE";
+    public static final String EXTRA_AUTHORITY = "com.mobilejazz.android.diskcache.EXTRA_AUTHORITY";
 
     @Override
     public void attachInfo(Context context, ProviderInfo info) {
@@ -62,8 +62,9 @@ public class CacheProvider extends FileProvider {
     }
 
     public static void clear(Context context, String authority) throws IOException, XmlPullParserException {
+        final ProviderInfo info = context.getPackageManager().resolveContentProvider(authority, PackageManager.GET_META_DATA);
         // delete all files that are older than the maximum allowed age:
-        FileCleaner cleaner = new FileCleaner();
+        FileCleaner cleaner = new FileCleaner(info.metaData.getInt(META_DATA_MAX_AGE, 0), info.metaData.getInt(META_DATA_MAX_SIZE, 0));
         visitFiles(context, authority, cleaner);
         cleaner.purge();
     }
@@ -186,7 +187,12 @@ public class CacheProvider extends FileProvider {
         private int size;
         private PriorityQueue<File> purgeCandidates;
 
-        public FileCleaner() {
+        private int maxAge;
+        private int maxSize;
+
+        public FileCleaner(int maxAge, int maxSize) {
+            this.maxAge = maxAge;
+            this.maxSize = maxSize;
             size = 0;
             purgeCandidates = new PriorityQueue<>(32, new Comparator<File>() {
                 @Override
@@ -204,34 +210,37 @@ public class CacheProvider extends FileProvider {
             });
         }
 
-        private static double score(File f) {
-            return ((double)(f.length()) / (double)MAX_SIZE)*5.0 + ((double)(System.currentTimeMillis() - f.lastModified()) / (double)MAX_AGE);
+        private double score(File f) {
+            return ((double)(f.length()) / (double)maxSize)*5.0 + ((double)(System.currentTimeMillis() - f.lastModified()) / (double)maxAge);
         }
 
         @Override
         public void visit(File f) {
-            if (System.currentTimeMillis() - f.lastModified() > MAX_AGE) {
+            if (maxAge > 0 && System.currentTimeMillis() - f.lastModified() > maxAge) {
                 boolean res = f.delete();
                 if (!res) {
                     size += f.length();
                 }
                 Log.i(TAG, String.format("[AGE] Removing file %s - %s", f.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
-            } else {
+            } else if (maxSize > 0) {
                 size += f.length();
                 purgeCandidates.add(f);
             }
         }
 
         public void purge() {
-            // remove files until the size of the cache is lower than MAX_SIZE:
-            while (size > MAX_SIZE) {
-                File next = purgeCandidates.poll();
-                boolean res = next.delete();
-                if (res) {
-                    size -= next.length();
+            if (maxSize > 0) {
+                // remove files until the size of the cache is lower than MAX_SIZE:
+                while (size > maxSize) {
+                    File next = purgeCandidates.poll();
+                    boolean res = next.delete();
+                    if (res) {
+                        size -= next.length();
+                    }
+                    Log.i(TAG, String.format("[SIZE] Removing file %s - %s", next.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
                 }
-                Log.i(TAG, String.format("[SIZE] Removing file %s - %s", next.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
             }
+            purgeCandidates.clear();
         }
 
     }
