@@ -8,7 +8,11 @@ public class CacheBroadcastReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-
+        try {
+            CacheProvider.clear(context, intent.getStringExtra(CacheProvider.EXTRA_AUTHORITY));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }
