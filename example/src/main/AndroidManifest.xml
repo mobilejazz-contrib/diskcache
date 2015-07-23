@@ -19,13 +19,13 @@
             android:exported="false">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/cache_filepath_single" />
+                android:resource="@xml/example_filepaths" />
             <meta-data
                 android:name="com.mobilejazz.android.diskcache.META_MAX_AGE"
                 android:value="1" />
             <meta-data
                 android:name="com.mobilejazz.android.diskcache.META_MAX_SIZE"
-                android:value="1" />
+                android:value="300" />
         </provider>
     </application>
 
