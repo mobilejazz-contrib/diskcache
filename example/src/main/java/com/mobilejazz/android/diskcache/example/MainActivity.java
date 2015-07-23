@@ -1,5 +1,13 @@
 package com.mobilejazz.android.diskcache.example;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Random;
+
+import org.apache.commons.io.FileUtils;
+
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.os.Bundle;
@@ -8,27 +16,39 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.DatePicker;
+import android.widget.TextView;
 
 import com.mobilejazz.android.diskcache.library.CacheProvider;
-
-import org.apache.commons.io.FileUtils;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Calendar;
-import java.util.Random;
 
 public class MainActivity extends Activity implements DatePickerDialog.OnDateSetListener {
 
     public static final String TAG = "diskcache-example";
 
     Random random;
+    TextView text;
+    String authority;
+
+    List<File> cacheDirectories;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         random = new Random();
+        text = (TextView) findViewById(R.id.text);
+        authority = getString(R.string.authority_cache);
+
+        try {
+            cacheDirectories = CacheProvider.getCacheDirectories(this, authority);
+            StringBuilder b = new StringBuilder();
+            for (File f : cacheDirectories) {
+                b.append(f.getAbsolutePath().substring(getApplicationInfo().dataDir.length()));
+                b.append('\n');
+            }
+            text.setText(b);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -45,7 +65,7 @@ public class MainActivity extends Activity implements DatePickerDialog.OnDateSet
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
+        // noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
             return true;
         }
@@ -61,7 +81,7 @@ public class MainActivity extends Activity implements DatePickerDialog.OnDateSet
 
     public void clear(View v) {
         try {
-            CacheProvider.clear(this, getString(R.string.authority_cache));
+            CacheProvider.clear(this, authority);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -70,10 +90,11 @@ public class MainActivity extends Activity implements DatePickerDialog.OnDateSet
     @Override
     public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
         try {
-            File newFile = new File(getCacheDir(), String.format("test/%05X", System.currentTimeMillis()));
-            newFile.getParentFile().mkdirs();
+            File directory = cacheDirectories.get(random.nextInt(cacheDirectories.size()));
+            directory.mkdirs();
+            File newFile = new File(directory, String.format("%05X", System.currentTimeMillis()));
             String srcFile = String.format("%d.pdf", random.nextInt(3) + 1);
-            Log.i(TAG, "Copying data from " + srcFile);
+            Log.i(TAG, String.format("Copying data from %s to %s", srcFile, newFile.getName()));
             FileUtils.copyInputStreamToFile(getAssets().open(srcFile), newFile);
             Calendar c = Calendar.getInstance();
             c.set(Calendar.YEAR, year);
@@ -82,7 +103,6 @@ public class MainActivity extends Activity implements DatePickerDialog.OnDateSet
             if (!newFile.setLastModified(c.getTimeInMillis())) {
                 Log.e(TAG, "Could not set last modified on " + newFile.getAbsolutePath());
             }
-
 
         } catch (IOException e) {
             e.printStackTrace();
