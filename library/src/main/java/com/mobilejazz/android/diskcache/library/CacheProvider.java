@@ -43,7 +43,7 @@ import android.util.Log;
 public class CacheProvider extends FileProvider {
 
     /**
-     * Meta-data defining the maximum age of a file in days. When a file exceeds
+     * Meta-data defining the maximum age of a file in hours. When a file exceeds
      * that age, it will be removed. Note that it will not be removed
      * immediately, but within the next day. If a file is modified it will reset
      * it's age (see {@link File#lastModified()}.
@@ -233,8 +233,8 @@ public class CacheProvider extends FileProvider {
         private final int maxSize;
 
         public FileCleaner(int maxAge, int maxSize) {
-            this.maxAge = maxAge * 86400;
-            this.maxSize = maxSize * 1024;
+            this.maxAge = maxAge * 3600000; // hours
+            this.maxSize = maxSize * 1024; // kb
             size = 0;
             purgeCandidates = new PriorityQueue<>(32, new Comparator<File>() {
                 @Override
