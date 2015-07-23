@@ -191,11 +191,14 @@ public class CacheProvider extends FileProvider {
     }
 
     private static void visitDirectory(File directory, Visitor<File> visitor) {
-        for (File f : directory.listFiles()) {
-            if (f.isDirectory()) {
-                visitDirectory(f, visitor);
-            } else {
-                visitor.visit(f);
+        File[] files = directory.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    visitDirectory(f, visitor);
+                } else {
+                    visitor.visit(f);
+                }
             }
         }
     }
@@ -226,8 +229,8 @@ public class CacheProvider extends FileProvider {
         private int size;
         private PriorityQueue<File> purgeCandidates;
 
-        private int maxAge;
-        private int maxSize;
+        private final int maxAge;
+        private final int maxSize;
 
         public FileCleaner(int maxAge, int maxSize) {
             this.maxAge = maxAge * 86400;
@@ -239,9 +242,9 @@ public class CacheProvider extends FileProvider {
                     double sa = score(lhs);
                     double sb = score(rhs);
                     if (sa > sb) {
-                        return 1;
-                    } else if (sa < sb) {
                         return -1;
+                    } else if (sa < sb) {
+                        return 1;
                     } else {
                         return 0;
                     }
@@ -256,11 +259,12 @@ public class CacheProvider extends FileProvider {
         @Override
         public void visit(File f) {
             if (maxAge > 0 && System.currentTimeMillis() - f.lastModified() > maxAge) {
+                long fileSize = f.length();
                 boolean res = f.delete();
                 if (!res) {
-                    size += f.length();
+                    size += fileSize;
                 }
-                Log.i(TAG, String.format("[AGE] Removing file %s - %s", f.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
+                Log.i(TAG, String.format("[AGE] Removing file %s (%.1f kb) - %s", f.getAbsolutePath(), fileSize / 1024.0, (res) ? "SUCCESS" : "FAILURE"));
             } else if (maxSize > 0) {
                 size += f.length();
                 purgeCandidates.add(f);
@@ -271,16 +275,18 @@ public class CacheProvider extends FileProvider {
             if (maxSize > 0) {
                 // remove files until the size of the cache is lower than
                 // MAX_SIZE:
-                while (size > maxSize) {
+                while (size > maxSize && purgeCandidates.size() > 0) {
                     File next = purgeCandidates.poll();
+                    long fileSize = next.length();
                     boolean res = next.delete();
                     if (res) {
-                        size -= next.length();
+                        size -= fileSize;
                     }
-                    Log.i(TAG, String.format("[SIZE] Removing file %s - %s", next.getAbsolutePath(), (res) ? "SUCCESS" : "FAILURE"));
+                    Log.i(TAG, String.format("[SIZE] Removing file %s (%.1f kb) - %s", next.getAbsolutePath(), fileSize / 1024.0, (res) ? "SUCCESS" : "FAILURE"));
                 }
             }
             purgeCandidates.clear();
+            Log.i(TAG, String.format("Remaining cache size: %.1f kb (%.0f %% used)", size / 1024.0, size * 100.0 / maxSize ));
         }
 
     }
