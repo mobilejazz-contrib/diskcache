@@ -43,8 +43,8 @@ import android.util.Log;
 public class CacheProvider extends FileProvider {
 
     /**
-     * Meta-data defining the maximum age of a file in hours. When a file exceeds
-     * that age, it will be removed. Note that it will not be removed
+     * Meta-data defining the maximum age of a file in hours. When a file
+     * exceeds that age, it will be removed. Note that it will not be removed
      * immediately, but within the next day. If a file is modified it will reset
      * it's age (see {@link File#lastModified()}.
      */
@@ -58,25 +58,28 @@ public class CacheProvider extends FileProvider {
      */
     public static final String META_DATA_MAX_SIZE = "com.mobilejazz.android.diskcache.META_MAX_SIZE";
 
+    public static final String ACTION_CLEAR_CACHE = "com.mobilejazz.android.diskcache.ACTION_CLEAR_CACHE";
+
     static final String TAG = "diskcache";
 
     static final int REQUEST_CLEAR_CACHE = 44477905;
     static final String EXTRA_AUTHORITY = "com.mobilejazz.android.diskcache.EXTRA_AUTHORITY";
 
     @Override
-    public void attachInfo(Context context, ProviderInfo info) {
+    public void attachInfo(Context context, final ProviderInfo info) {
         super.attachInfo(context, info);
-        Intent clearCacheIntent = new Intent(getContext(), CacheBroadcastReceiver.class).putExtra(EXTRA_AUTHORITY, info.authority);
-        PendingIntent clearCache = PendingIntent.getBroadcast(getContext(), REQUEST_CLEAR_CACHE, clearCacheIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        Intent clearCacheIntent = new Intent(ACTION_CLEAR_CACHE).setPackage(getContext().getPackageName()).putExtra(EXTRA_AUTHORITY, info.authority);
+        PendingIntent clearCache = PendingIntent.getBroadcast(getContext(), REQUEST_CLEAR_CACHE, clearCacheIntent, PendingIntent.FLAG_CANCEL_CURRENT);
         AlarmManager am = (AlarmManager) (getContext().getSystemService(Context.ALARM_SERVICE));
         am.cancel(clearCache);
-        am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, AlarmManager.INTERVAL_FIFTEEN_MINUTES, AlarmManager.INTERVAL_FIFTEEN_MINUTES, clearCache);
+        am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, AlarmManager.INTERVAL_DAY, AlarmManager.INTERVAL_DAY, clearCache);
 
         try {
-            getContext().registerReceiver(new CacheBroadcastReceiver(), IntentFilter.create("", "*/*"));
+            getContext().registerReceiver(new CacheBroadcastReceiver(), new IntentFilter(ACTION_CLEAR_CACHE));
         } catch (IllegalArgumentException e) {
             // already registered
         }
+
     }
 
     @Override
@@ -282,11 +285,12 @@ public class CacheProvider extends FileProvider {
                     if (res) {
                         size -= fileSize;
                     }
-                    Log.i(TAG, String.format("[SIZE] Removing file %s (%.1f kb) - %s", next.getAbsolutePath(), fileSize / 1024.0, (res) ? "SUCCESS" : "FAILURE"));
+                    Log.i(TAG,
+                            String.format("[SIZE] Removing file %s (%.1f kb) - %s", next.getAbsolutePath(), fileSize / 1024.0, (res) ? "SUCCESS" : "FAILURE"));
                 }
             }
             purgeCandidates.clear();
-            Log.i(TAG, String.format("Remaining cache size: %.1f kb (%.0f %% used)", size / 1024.0, size * 100.0 / maxSize ));
+            Log.i(TAG, String.format("Remaining cache size: %.1f kb (%.0f %% used)", size / 1024.0, size * 100.0 / maxSize));
         }
 
     }
