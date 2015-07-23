@@ -16,10 +16,11 @@ import org.apache.commons.io.FileUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Random;
 
 public class MainActivity extends Activity implements DatePickerDialog.OnDateSetListener {
+
+    public static final String TAG = "diskcache-example";
 
     Random random;
 
@@ -70,15 +71,16 @@ public class MainActivity extends Activity implements DatePickerDialog.OnDateSet
     public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
         try {
             File newFile = new File(getCacheDir(), String.format("test/%05X", System.currentTimeMillis()));
-            if (newFile.mkdirs() && newFile.createNewFile()) {
-                FileUtils.copyInputStreamToFile(getAssets().open(String.format("%d.pdf", random.nextInt(3) + 1)), newFile);
-                Calendar c = Calendar.getInstance();
-                c.set(Calendar.YEAR, year);
-                c.set(Calendar.MONTH, monthOfYear);
-                c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
-                if (!newFile.setLastModified(c.getTimeInMillis())) {
-                    Log.e("diskcache-example", "Could not set last modified on " + newFile.getAbsolutePath());
-                }
+            newFile.getParentFile().mkdirs();
+            String srcFile = String.format("%d.pdf", random.nextInt(3) + 1);
+            Log.i(TAG, "Copying data from " + srcFile);
+            FileUtils.copyInputStreamToFile(getAssets().open(srcFile), newFile);
+            Calendar c = Calendar.getInstance();
+            c.set(Calendar.YEAR, year);
+            c.set(Calendar.MONTH, monthOfYear);
+            c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+            if (!newFile.setLastModified(c.getTimeInMillis())) {
+                Log.e(TAG, "Could not set last modified on " + newFile.getAbsolutePath());
             }
 
 
