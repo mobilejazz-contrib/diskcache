@@ -3,6 +3,7 @@ package com.mobilejazz.android.diskcache.example;
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -10,15 +11,23 @@ import android.widget.DatePicker;
 
 import com.mobilejazz.android.diskcache.library.CacheProvider;
 
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.Random;
 
 public class MainActivity extends Activity implements DatePickerDialog.OnDateSetListener {
+
+    Random random;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        random = new Random();
     }
 
     @Override
@@ -59,6 +68,22 @@ public class MainActivity extends Activity implements DatePickerDialog.OnDateSet
 
     @Override
     public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
-        // TODO: add a file
+        try {
+            File newFile = new File(getCacheDir(), String.format("test/%05X", System.currentTimeMillis()));
+            if (newFile.mkdirs() && newFile.createNewFile()) {
+                FileUtils.copyInputStreamToFile(getAssets().open(String.format("%d.pdf", random.nextInt(3) + 1)), newFile);
+                Calendar c = Calendar.getInstance();
+                c.set(Calendar.YEAR, year);
+                c.set(Calendar.MONTH, monthOfYear);
+                c.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                if (!newFile.setLastModified(c.getTimeInMillis())) {
+                    Log.e("diskcache-example", "Could not set last modified on " + newFile.getAbsolutePath());
+                }
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
