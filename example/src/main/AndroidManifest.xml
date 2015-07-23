@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.mobilejazz.android.diskcache.example" >
+          xmlns:tools="http://schemas.android.com/tools"
+          package="com.mobilejazz.android.diskcache.example">
 
     <application
         android:allowBackup="true"
@@ -16,7 +17,8 @@
             android:name="com.mobilejazz.android.diskcache.library.CacheProvider"
             android:authorities="@string/authority.cache"
             android:grantUriPermissions="true"
-            android:exported="false">
+            android:exported="false"
+            tools:replace="android:authorities">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/example_filepaths" />

@@ -2,12 +2,12 @@
           package="com.mobilejazz.android.diskcache.library">
 
     <application android:allowBackup="true"
-                 android:label="abcd"
+                 android:label="abc"
         >
 
         <provider
             android:name="com.mobilejazz.android.diskcache.library.CacheProvider"
-            android:authorities="com.mobilejazz.android.diskcache.library.CACHE_PROVIDER"
+            android:authorities="@string/authority.cache"
             android:grantUriPermissions="true"
             android:exported="false">
             <meta-data
