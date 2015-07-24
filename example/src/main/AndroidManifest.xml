@@ -10,6 +10,10 @@
         <activity
             android:name=".MainActivity"
             android:label="@string/title_activity_main" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
 
         <provider
@@ -27,6 +31,15 @@
                 android:name="com.mobilejazz.android.diskcache.META_MAX_SIZE"
                 android:value="300" />
         </provider>
+
+        <receiver
+            android:name="com.mobilejazz.android.diskcache.library.CacheBroadcastReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.mobilejazz.android.diskcache.ACTION_CLEAR_CACHE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

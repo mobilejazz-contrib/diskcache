@@ -71,15 +71,7 @@ public class CacheProvider extends FileProvider {
         Intent clearCacheIntent = new Intent(ACTION_CLEAR_CACHE).setPackage(getContext().getPackageName()).putExtra(EXTRA_AUTHORITY, info.authority);
         PendingIntent clearCache = PendingIntent.getBroadcast(getContext(), REQUEST_CLEAR_CACHE, clearCacheIntent, PendingIntent.FLAG_CANCEL_CURRENT);
         AlarmManager am = (AlarmManager) (getContext().getSystemService(Context.ALARM_SERVICE));
-        am.cancel(clearCache);
         am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, AlarmManager.INTERVAL_DAY, AlarmManager.INTERVAL_DAY, clearCache);
-
-        try {
-            getContext().registerReceiver(new CacheBroadcastReceiver(), new IntentFilter(ACTION_CLEAR_CACHE));
-        } catch (IllegalArgumentException e) {
-            // already registered
-        }
-
     }
 
     @Override
